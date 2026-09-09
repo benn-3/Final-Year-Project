@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum JobType {
+  roadmap
+  assessment
+  diagnostic
+  modification
+}
+
+enum JobStatus {
+  pending
+  ready
+  failed
+}
+
+enum RoadmapStatus {
+  active
+  archived
+}
+
+enum MilestoneStatus {
+  locked
+  active
+  completed
+}
+
+enum ChapterStatus {
+  not_started
+  in_progress
+  knowledge_check_pending
+  completed
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  profile        UserProfile?
+  roadmaps       Roadmap[]
+  attempts       Attempt[]
+  chapterNotes   ChapterNote[]
+  learnerRating  LearnerRating?
+  conceptMastery ConceptMastery[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique @map("user_id")
+  goal                   String
+  interestTags           String[] @map("interest_tags")
+  preparednessLevel      String   @map("preparedness_level")
+  selfRatedKnowledge     String   @default("beginner") @map("self_rated_knowledge")
+  diagnosticScore        Float?   @map("diagnostic_score")
+  diagnosticWeakConcepts String[] @map("diagnostic_weak_concepts")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Roadmap {
+  id        String        @id @default(cuid())
+  userId    String        @map("user_id")
+  status    RoadmapStatus @default(active)
+  version   Int           @default(1)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones Milestone[]
+  changeLogs RoadmapChangeLog[]
+
+  @@map("roadmaps")
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  roadmapId   String          @map("roadmap_id")
+  order       Int
+  title       String
+  description String?
+  status      MilestoneStatus @default(locked)
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  roadmap  Roadmap   @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+  chapters Chapter[]
+
+  @@map("milestones")
+}
+
+model Chapter {
+  id          String        @id @default(cuid())
+  milestoneId String        @map("milestone_id")
+  order       Int
+  title       String
+  objectives  String[]
+  status      ChapterStatus @default(not_started)
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  milestone   Milestone    @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  notes       ChapterNote[]
+  assessments Assessment[]
+
+  @@map("chapters")
+}
+
+model ChapterNote {
+  id          String   @id @default(cuid())
+  chapterId   String   @map("chapter_id")
+  userId      String   @map("user_id")
+  fileUrl     String?  @map("file_url")
+  fileType    String?  @map("file_type")
+  contentText String?  @map("content_text")
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("chapter_notes")
+}
+
+model Assessment {
+  id          String   @id @default(cuid())
+  chapterId   String   @map("chapter_id")
+  difficulty  Int      @default(2)
+  generatedAt DateTime @default(now()) @map("generated_at")
+
+  chapter   Chapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  questions Question[]
+  attempts  Attempt[]
+
+  @@map("assessments")
+}
+
+model Question {
+  id           String @id @default(cuid())
+  assessmentId String @map("assessment_id")
+  text         String
+  options      String[]
+  correctIndex Int    @map("correct_index")
+  conceptTag   String @map("concept_tag")
+  explanation  String
+  /// Elo rating seeded from difficulty at generation time (easy≈1000, medium≈1200, hard≈1400).
+  /// Updated after every attempt via the mastery engine.
+  eloRating    Float  @default(1200) @map("elo_rating")
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@map("questions")
+}
+
+model Attempt {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  assessmentId String   @map("assessment_id")
+  score        Float
+  answers      Json
+  passed       Boolean
+  attemptedAt  DateTime @default(now()) @map("attempted_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@map("attempts")
+}
+
+model RoadmapChangeLog {
+  id          String    @id @default(cuid())
+  roadmapId   String    @map("roadmap_id")
+  versionFrom Int       @map("version_from")
+  versionTo   Int       @map("version_to")
+  diffJson    Json      @map("diff_json")
+  userPrompt  String    @map("user_prompt")
+  // pending | confirmed | rejected
+  status      String    @default("pending")
+  confirmedAt DateTime? @map("confirmed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  roadmap Roadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+
+  @@map("roadmap_change_logs")
+}
+
+/// Backs every async NIM generation call.
+/// resultRef stores the ID of the entity being generated (roadmapId, assessmentId, etc.)
+model GenerationJob {
+  id        String    @id @default(cuid())
+  type      JobType
+  status    JobStatus @default(pending)
+  resultRef String?   @map("result_ref")
+  error     String?
+  metadata  Json?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([resultRef])
+  @@index([type, status])
+  @@map("generation_jobs")
+}
+
+// ─── Adaptive mastery engine ──────────────────────────────────────────────────
+
+/// Live Elo rating per learner. Upserted on first attempt (default 1200).
+/// Updated by the mastery engine after every graded attempt.
+model LearnerRating {
+  userId    String   @id @map("user_id")
+  rating    Float    @default(1200)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("learner_ratings")
+}
+
+/// BKT posterior per (learner, concept). One row per concept tag per user.
+/// p_mastery starts at 0.3 (prior) and is updated after every relevant attempt.
+model ConceptMastery {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  conceptTag String   @map("concept_tag")
+  pMastery   Float    @default(0.3) @map("p_mastery")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conceptTag])
+  @@index([userId])
+  @@map("concept_mastery")
+}
