@@ -1,5 +1,5 @@
-const { Prismafrontend } = require('@prisma/frontend');
-const prisma = new Prismafrontend();
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 async function checkDB() {
   try {

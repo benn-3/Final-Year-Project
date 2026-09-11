@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { Prismafrontend } = require('@prisma/frontend');
+const { PrismaClient } = require('@prisma/client');
 
-const prisma = new Prismafrontend();
+const prisma = new PrismaClient();
 const SALT_ROUNDS = 12;
 
 function generateTokens(userId) {

@@ -3,7 +3,7 @@ const { z } = require('zod');
 const auth = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const assessmentService = require('../services/assessment.service');
-const { getConceptMasteryWithUncertainty, getWeakConceptsWithContext } = require('../services/tracekt.service');
+const { getConceptMasteryWithUncertainty, getWeakConceptsWithContext, getMasteryOverview } = require('../services/tracekt.service');
 
 const router = Router();
 
@@ -66,6 +66,12 @@ router.get('/mastery/concepts', auth, async (req, res) => {
 router.get('/mastery/weak', auth, async (req, res) => {
   const weakConcepts = await getWeakConceptsWithContext(req.user.sub);
   res.json({ weakConcepts });
+});
+
+// GET /mastery/overview — comprehensive TRACE-KT dashboard data
+router.get('/mastery/overview', auth, async (req, res) => {
+  const overview = await getMasteryOverview(req.user.sub);
+  res.json(overview);
 });
 
 module.exports = router;

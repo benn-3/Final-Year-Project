@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import api from '../api/frontend';
+import api from '../api/client';
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
 import DiffConfirmCard from '../components/DiffConfirmCard';
@@ -161,9 +161,14 @@ export default function RoadmapPage() {
             v{roadmap.version} · {roadmap.progress.completed}/{roadmap.progress.total} chapters complete
           </p>
         </div>
-        <button id="btn-modify-roadmap" className="btn btn-outline btn-sm" onClick={() => setModifyOpen(true)}>
-          ✏️ Modify with AI
-        </button>
+        <div style={{ display: 'flex', gap: '0.6rem' }}>
+          <button id="btn-view-mastery" className="btn btn-ghost btn-sm" onClick={() => navigate('/mastery')}>
+            🧠 Cognitive Mastery
+          </button>
+          <button id="btn-modify-roadmap" className="btn btn-outline btn-sm" onClick={() => setModifyOpen(true)}>
+            ✏️ Modify with AI
+          </button>
+        </div>
       </div>
 
       {/* Overall progress */}

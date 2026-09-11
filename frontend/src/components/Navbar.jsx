@@ -25,6 +25,14 @@ export default function Navbar() {
           </span>
         )}
         <button
+          id="btn-nav-mastery"
+          onClick={() => navigate('/mastery')}
+          className="btn btn-ghost btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+        >
+          <span>🧠</span> Mastery
+        </button>
+        <button
           id="btn-new-roadmap"
           onClick={() => navigate('/onboard')}
           className="btn btn-outline btn-sm"

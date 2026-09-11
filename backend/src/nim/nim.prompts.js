@@ -45,10 +45,10 @@ function buildMCQPrompt({ objectives, goal, difficulty, count = 6, conceptContex
 STRICT RULES:
 - Generate exactly ${count} questions with 4 options each, exactly 1 correct answer.
 - Every objective must be covered by at least one question.
-- Distractors must be plausible — no obviously wrong options.
-- Tag each question with the specific concept it tests (concept_tag).
+- Distractors must be plausible and distinct — no duplicate, trivially false, or "all of the above" options.
+- Tag each question with the specific concept it tests (concept_tag). The question text and correct answer MUST strongly reflect the terms in concept_tag for cognitive reliability scoring.
 - Include a brief post-attempt explanation of why the correct answer is correct.
-- Difficulty scale 1-5: ${difficulty}/5.
+- Difficulty scale 1-5: ${difficulty}/5. Calibrate question complexity strictly to this level.
 - Output ONLY a valid JSON array. No prose, no markdown fences.
 
 Required JSON structure:

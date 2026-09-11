@@ -1,0 +1,188 @@
+{
+  "timestamp": "2026-09-11T15:03:08.120Z",
+  "config": {
+    "numLearners": 80,
+    "numConcepts": 12,
+    "itemsPerConcept": 8,
+    "seed": 2026
+  },
+  "summary": [
+    {
+      "id": "bkt",
+      "name": "Standard BKT",
+      "auc": 0.5655714412526993,
+      "aucStd": 0.025198711703804028,
+      "accuracy": 0.5615885416666667,
+      "f1": 0.5249885931828843,
+      "rmse": 0.5138424370510505,
+      "brier": 0.26410359499929065,
+      "ece": 0.11573554936930733
+    },
+    {
+      "id": "elo",
+      "name": "Elo-Only",
+      "auc": 0.586201924852005,
+      "aucStd": 0.0153645737628517,
+      "accuracy": 0.5704427083333333,
+      "f1": 0.5137987056140354,
+      "rmse": 0.49885001602817025,
+      "brier": 0.2488886292460649,
+      "ece": 0.06844843881294026
+    },
+    {
+      "id": "elo_bkt",
+      "name": "Elo-BKT (Legacy)",
+      "auc": 0.5742369112998077,
+      "aucStd": 0.022721049770549562,
+      "accuracy": 0.5606770833333333,
+      "f1": 0.5276251835874044,
+      "rmse": 0.5442021748144651,
+      "brier": 0.2962599264389957,
+      "ece": 0.2037767427727079
+    },
+    {
+      "id": "tracekt_no_ces",
+      "name": "A1: TRACE-KT (w/o CES)",
+      "auc": 0.5736528299799311,
+      "aucStd": 0.02317130549453272,
+      "accuracy": 0.5627604166666667,
+      "f1": 0.5261103467273287,
+      "rmse": 0.5362749506031106,
+      "brier": 0.2876906650694046,
+      "ece": 0.17942990861044614,
+      "picp": 0.5229166666666667,
+      "mpiw": 0.3881378257740338
+    },
+    {
+      "id": "tracekt_no_trust",
+      "name": "A2: TRACE-KT (w/o Trust)",
+      "auc": 0.575934014041818,
+      "aucStd": 0.02544579285709941,
+      "accuracy": 0.5640625,
+      "f1": 0.5218199801241399,
+      "rmse": 0.5161522962618746,
+      "brier": 0.2665005843406726,
+      "ece": 0.12925181427664462,
+      "picp": 0.8053385416666666,
+      "mpiw": 0.49318853541800556
+    },
+    {
+      "id": "tracekt_no_rt",
+      "name": "A4: TRACE-KT (w/o RT)",
+      "auc": 0.5802461455055836,
+      "aucStd": 0.02680943855368591,
+      "accuracy": 0.5666666666666667,
+      "f1": 0.5224727610770672,
+      "rmse": 0.5178055812477174,
+      "brier": 0.26822392589438115,
+      "ece": 0.12367432214835276,
+      "picp": 0.7524739583333333,
+      "mpiw": 0.4593162638392489
+    },
+    {
+      "id": "tracekt_no_hints",
+      "name": "A5: TRACE-KT (w/o Hints)",
+      "auc": 0.5797782880145743,
+      "aucStd": 0.026138821350147882,
+      "accuracy": 0.5626302083333333,
+      "f1": 0.520832490588616,
+      "rmse": 0.5159736561902311,
+      "brier": 0.2663149750881276,
+      "ece": 0.1304714819644298,
+      "picp": 0.8063802083333333,
+      "mpiw": 0.492985610335442
+    },
+    {
+      "id": "tracekt_no_conf",
+      "name": "A6: TRACE-KT (w/o Conf)",
+      "auc": 0.568945987448801,
+      "aucStd": 0.024409329873170408,
+      "accuracy": 0.5619791666666667,
+      "f1": 0.52054126268935,
+      "rmse": 0.5173975272662302,
+      "brier": 0.26778451823250693,
+      "ece": 0.12621873409984027,
+      "picp": 0.7958333333333333,
+      "mpiw": 0.49011364188356127
+    },
+    {
+      "id": "tracekt_full",
+      "name": "TRACE-KT (Proposed Full)",
+      "auc": 0.5749713614340344,
+      "aucStd": 0.025574383999022916,
+      "accuracy": 0.56328125,
+      "f1": 0.521149293985713,
+      "rmse": 0.5156713912949628,
+      "brier": 0.26600086709581366,
+      "ece": 0.12813946524780392,
+      "picp": 0.8212239583333333,
+      "mpiw": 0.5026242721638348
+    }
+  ],
+  "significance": [
+    {
+      "baseline": "Standard BKT",
+      "meanDiffAUC": 0.0094,
+      "tStat": 4.471,
+      "pValue": 0.0001,
+      "cohensD": 2,
+      "significant": true
+    },
+    {
+      "baseline": "Elo-Only",
+      "meanDiffAUC": -0.0112,
+      "tStat": -0.953,
+      "pValue": 0.3404,
+      "cohensD": -0.43,
+      "significant": false
+    },
+    {
+      "baseline": "Elo-BKT (Legacy)",
+      "meanDiffAUC": 0.0007,
+      "tStat": 0.426,
+      "pValue": 0.6703,
+      "cohensD": 0.19,
+      "significant": false
+    },
+    {
+      "baseline": "A1: TRACE-KT (w/o CES)",
+      "meanDiffAUC": 0.0013,
+      "tStat": 0.936,
+      "pValue": 0.3493,
+      "cohensD": 0.42,
+      "significant": false
+    },
+    {
+      "baseline": "A2: TRACE-KT (w/o Trust)",
+      "meanDiffAUC": -0.001,
+      "tStat": -1.952,
+      "pValue": 0.0509,
+      "cohensD": -0.87,
+      "significant": false
+    },
+    {
+      "baseline": "A4: TRACE-KT (w/o RT)",
+      "meanDiffAUC": -0.0053,
+      "tStat": -3.338,
+      "pValue": 0.0008,
+      "cohensD": -1.49,
+      "significant": true
+    },
+    {
+      "baseline": "A5: TRACE-KT (w/o Hints)",
+      "meanDiffAUC": -0.0048,
+      "tStat": -3.889,
+      "pValue": 0.0001,
+      "cohensD": -1.74,
+      "significant": true
+    },
+    {
+      "baseline": "A6: TRACE-KT (w/o Conf)",
+      "meanDiffAUC": 0.006,
+      "tStat": 5.315,
+      "pValue": 0.0001,
+      "cohensD": 2.38,
+      "significant": true
+    }
+  ]
+}

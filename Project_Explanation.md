@@ -25,43 +25,81 @@ The application enforces strict architectural rules to ensure reliability and pe
 
 ---
 
-## 3. The Mastery Engine: Elo + BKT Fusion
+## 3. The TRACE-KT Mastery Engine
 
-The core intelligence of the application (outside of LLM generation) is the **Hybrid Adaptive Mastery Engine**. It combines the **Elo Rating System** and **Bayesian Knowledge Tracing (BKT)** into a single, cohesive algorithm. 
+The core intelligence of the application (outside of LLM generation) is **TRACE-KT** (**T**rust and **R**esponse-**A**ware **C**ognitive **E**vidence **K**nowledge **T**racing). While the earlier prototype used a basic Elo-BKT fusion, TRACE-KT introduces a research-grade framework specifically designed for generative AI environments.
 
-Typically, these are two separate algorithms: Elo tracks continuous player/question difficulty, while BKT tracks the probability that a learner understands a specific concept. This project innovates by fusing them together, allowing the continuous difficulty of a question to directly influence the statistical weight of the learner's answer.
+It unifies **Continuous Psychometrics (Elo)**, **Multi-Signal Cognitive Evidence (CES)**, **Automated Question Trust Scoring**, and **Closed-Form Epistemic Uncertainty Quantification**:
 
-### Step 1: The Elo Rating Update
-Every learner starts with a baseline rating of `1200`. Every question is generated with an initial difficulty (mapped to a starting Elo, e.g., Medium = `1200`).
+```
+Learner Interaction ──► [Response Time τ | Hints h | Confidence κ | Attempt n]
+                                      │
+                                      ▼
+                        Cognitive Evidence Strength (CES)
+                                      │
+AI Question Text ────► Question Trust Score (T_q)
+                                      │
+                                      ▼
+                       Effective Weight w_t = CES · T_q
+                                      │
+                                      ▼
+                        Dynamic Guess & Slip Parameters:
+                    G_t(E_t, w_t)  and  S_t(E_t, w_t)
+                                      │
+                                      ▼
+                        Bayesian Posterior Update:
+                       M_t^+  ──►  Learning Transition M_t
+                                      │
+                                      ▼
+                     Conjugate Beta Evidence Accumulation:
+                  α_k ← α_k + w_t · c_t,   β_k ← β_k + w_t · (1 - c_t)
+                                      │
+                                      ▼
+                    Analytical Epistemic Uncertainty U_t
+```
 
-When a learner answers a question, the engine calculates the **Expected Correctness** (\`expected\`) using the standard Elo formula:
-\`expected = 1 / (1 + 10^((Question_Elo - Learner_Rating) / 400))\`
+### Step 1: Continuous Elo Rating Updates
+Every learner begins with a baseline rating of `1200`. Every question's Elo rating is seeded from difficulty (1000–1400) and evolves with student responses:
+- `E_t = 1 / (1 + 10^((Question_Elo - Learner_Rating) / 400))`
+- `Learner_Rating += K_L * (correct - E_t)` (K_L = 24)
+- `Question_Elo += K_Q * (E_t - correct)` (K_Q = 8)
 
-After the attempt, both ratings are updated:
-- The **Learner's Rating** increases if they get it right, and decreases if wrong.
-- The **Question's Difficulty** increases if the learner gets it wrong (meaning the question was harder than expected), and decreases if they get it right.
+### Step 2: Cognitive Evidence Strength (CES — Contribution C1)
+Binary correctness (right vs. wrong) is enriched by four behavioral signals compressed into `CES ∈ (0, 1]`:
+- **Response Time Factor ($f_\tau$):** Measures deliberation time relative to difficulty expectation via a log-normal reference model. Fast, fluent correct answers yield high evidence ($f_\tau \approx 0.85$); excessively slow answers indicate deliberation or guessing ($f_\tau \approx 0.20$).
+- **Hint Factor ($f_h$):** Distractor elimination requests degrade evidence geometrically ($1 / (1 + h_t)$).
+- **Confidence Factor ($f_\kappa$):** 5-point Likert self-report penalties miscalibration (e.g. high confidence + wrong answer, or low confidence + lucky guess).
+- **Attempt Factor ($f_n$):** Mitigates gaming through repetitive attempts on the same concept.
 
-### Step 2: The Bayesian Knowledge Tracing (BKT) Update
-BKT tracks the probability that a learner has mastered a specific \`concept_tag\` (e.g., "React Hooks", "SQL Joins"). The state updates based on four probabilities:
-- **Prior:** The current probability of mastery before answering.
-- **P(G) - Guess:** The probability of getting it right despite not knowing the concept.
-- **P(S) - Slip:** The probability of getting it wrong despite knowing the concept.
-- **P(T) - Transit:** The probability of learning the concept just by seeing the question.
+### Step 3: Question Trust Scoring (Contribution C2)
+Because questions are generated by an LLM, their reliability is audited via an automated trust score ($\mathcal{T}_q \in [0, 1]$):
+- **Concept Consistency:** TF-IDF overlap between the question text and concept tag.
+- **Relevance:** Overlap with chapter learning objectives.
+- **Difficulty Calibration:** Post-hoc empirical check after $\ge 5$ student responses.
+- **Format Integrity:** Non-duplicate options and proper length heuristics.
 
-### The Fusion Point: Dynamic Guess and Slip
-In traditional BKT, \`P(G)\` and \`P(S)\` are static, hardcoded constants. In the **AI Learning Advisor**, they are **dynamically derived from the Elo Expected Correctness**. 
+The effective evidence weight is gated by trust: `w_t = CES * T_q`. **Low-trust or hallucinated questions cannot corrupt the student's mastery profile.**
 
-This solves a major flaw in standard BKT: answering a brutally hard question correctly should prove mastery much faster than answering a trivial question correctly.
+### Step 4: Dynamic Guess/Slip & Bayesian Posterior Update
+Guess and Slip parameters are dynamically parameterized by the joint interaction of Elo difficulty and effective evidence weight:
+- `G_t = BASE_GUESS * [E_t + w_t * (1 - 2*E_t)]`
+- `S_t = BASE_SLIP * [(1 - E_t) + w_t * (2*E_t - 1)]`
 
-**The Math:**
-- \`P(G) = BASE_GUESS * expected\`
-- \`P(S) = BASE_SLIP * (1 - expected)\`
+A hard question solved quickly with zero hints, high confidence, and high question trust yields low $G_t$, maximizing positive mastery impact.
 
-**Why this works:**
-1. **Hard Question (Low Expected):** The expected correctness is low (e.g., `0.10`). Therefore, the Guess probability \`P(G)\` shrinks drastically. If the learner gets it correct, the BKT algorithm recognizes that a lucky guess was highly unlikely, resulting in a **massive boost** to their concept mastery score.
-2. **Easy Question (High Expected):** The expected correctness is high (e.g., `0.90`). The Slip probability \`P(S)\` shrinks. If the learner gets it wrong, the algorithm recognizes that a simple mistake ("slip") was unlikely, resulting in a **severe penalty** to their concept mastery score.
+### Step 5: Closed-Form Epistemic Uncertainty (Contribution C3)
+A conjugate Beta distribution $\text{Beta}(\alpha_k, \beta_k)$ tracks accumulated positive and negative evidence:
+- $\alpha_k \leftarrow \alpha_k + w_t \cdot c_t$
+- $\beta_k \leftarrow \beta_k + w_t \cdot (1 - c_t)$
+- $U_t^{(k)} = 2\sqrt{\text{Var}[\text{Beta}]} \in [0, 1]$
 
-### Step 3: Closing the Loop (Adaptation)
-After the BKT posterior updates, the system checks for **Weak Concepts** (any concept where \`p_mastery < 0.6\`).
-1. **Adaptive Difficulty:** The learner's updated Elo rating is mapped back to a 1-5 scale and fed directly into the NVIDIA NIM prompt for future MCQ generation. A stronger learner will automatically receive harder questions.
-2. **Proactive Roadmap Modification:** When the user asks the AI to modify their roadmap, the backend invisibly injects their Weak Concepts into the AI's context window. The AI is instructed to proactively suggest new reinforcement chapters targeting those exact weaknesses.
+The system reports a dual coordinate: **$(M_t^{(k)}, U_t^{(k)})$** (e.g. Mastery = 82%, Uncertainty = ±8%).
+
+### Step 6: The 2×2 Epistemic Quadrant Matrix & Adaptation
+In the `MasteryDashboard`, concepts are classified into 4 pedagogical quadrants:
+1. **Mastered & Confirmed:** High Mastery ($\ge 70\%$), Low Uncertainty ($\le 25\%$).
+2. **Tentative Mastery:** High Mastery ($\ge 70\%$), High Uncertainty ($> 25\%$) — needs verification.
+3. **Confirmed Knowledge Gap:** Low Mastery ($< 70\%$), Low Uncertainty ($\le 25\%$) — verified gap.
+4. **Cold Start / Exploring:** Low Mastery ($< 70\%$), High Uncertainty ($> 25\%$) — needs more data before intervening.
+
+When the user modifies their roadmap with AI, confirmed knowledge gaps are automatically injected into the prompt so the LLM proactively suggests reinforcement chapters.

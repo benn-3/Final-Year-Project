@@ -1,7 +1,7 @@
-const { Prismafrontend } = require('@prisma/frontend');
+const { PrismaClient } = require('@prisma/client');
 const { diagnosticQueue } = require('../jobs/queue');
 
-const prisma = new Prismafrontend();
+const prisma = new PrismaClient();
 
 async function createProfile(userId, { goal, interests, preparedness, selfRatedKnowledge }) {
   // Upsert so re-running onboarding works cleanly

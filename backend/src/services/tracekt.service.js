@@ -660,6 +660,85 @@ async function getWeakConceptsWithContext(userId) {
   }));
 }
 
+/**
+ * Get comprehensive mastery overview for user dashboard.
+ * Includes learner rating, concept matrix with uncertainty, recent interaction CES breakdown, and summary stats.
+ * @param {string} userId
+ */
+async function getMasteryOverview(userId) {
+  const [rating, concepts, interactionLogs, attemptCount] = await Promise.all([
+    getLearnerRating(userId),
+    prisma.conceptMastery.findMany({
+      where: { userId },
+      orderBy: { pMastery: 'desc' },
+    }),
+    prisma.interactionLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+      include: {
+        question: {
+          select: { text: true, eloRating: true, trustScore: true },
+        },
+      },
+    }),
+    prisma.attempt.count({ where: { userId } }),
+  ]);
+
+  const totalConcepts = concepts.length;
+  const masteredCount = concepts.filter((c) => c.pMastery >= MASTERY_THRESHOLD).length;
+  const weakCount = concepts.filter((c) => c.pMastery < WEAK_THRESHOLD).length;
+  const inProgressCount = totalConcepts - masteredCount - weakCount;
+
+  const avgMastery = totalConcepts > 0
+    ? concepts.reduce((sum, c) => sum + c.pMastery, 0) / totalConcepts
+    : 0;
+  const avgUncertainty = totalConcepts > 0
+    ? concepts.reduce((sum, c) => sum + c.uncertainty, 0) / totalConcepts
+    : 0.5;
+
+  return {
+    learnerRating: Math.round(rating),
+    difficultyLevel: ratingToDifficulty(rating),
+    attemptCount,
+    summary: {
+      totalConcepts,
+      masteredCount,
+      inProgressCount,
+      weakCount,
+      averageMastery: Math.round(avgMastery * 1000) / 1000,
+      averageUncertainty: Math.round(avgUncertainty * 1000) / 1000,
+    },
+    concepts: concepts.map((c) => ({
+      conceptTag: c.conceptTag,
+      pMastery: Math.round(c.pMastery * 1000) / 1000,
+      uncertainty: Math.round(c.uncertainty * 1000) / 1000,
+      betaAlpha: Math.round(c.betaAlpha * 100) / 100,
+      betaBeta: Math.round(c.betaBeta * 100) / 100,
+      status: c.pMastery >= MASTERY_THRESHOLD
+        ? 'mastered'
+        : c.pMastery < WEAK_THRESHOLD
+        ? (c.uncertainty > 0.25 ? 'evaluating' : 'weak')
+        : 'in_progress',
+    })),
+    recentInteractions: interactionLogs.map((log) => ({
+      id: log.id,
+      conceptTag: log.conceptTag,
+      questionText: log.question?.text || '',
+      questionElo: Math.round(log.question?.eloRating || 1200),
+      trustScore: log.question?.trustScore ?? 0.5,
+      correct: log.correct,
+      responseTimeMs: log.responseTimeMs,
+      hintCount: log.hintCount,
+      confidence: log.confidence,
+      cesScore: log.cesScore ? Math.round(log.cesScore * 1000) / 1000 : null,
+      effectiveWeight: log.effectiveWeight ? Math.round(log.effectiveWeight * 1000) / 1000 : null,
+      attemptNumber: log.attemptNumber,
+      createdAt: log.createdAt,
+    })),
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Exports
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -675,6 +754,7 @@ module.exports = {
   getWeakConcepts,
   getConceptMasteryWithUncertainty,
   getWeakConceptsWithContext,
+  getMasteryOverview,
 
   // Pure functions (exported for unit testing and paper verification)
   eloExpected,

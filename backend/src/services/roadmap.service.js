@@ -1,11 +1,11 @@
-const { Prismafrontend } = require('@prisma/frontend');
+const { PrismaClient } = require('@prisma/client');
 const { roadmapQueue } = require('../jobs/queue');
-const { callNIM } = require('../nim/nim.frontend');
+const { callNIM } = require('../nim/nim.client');
 const { buildDiffPrompt } = require('../nim/nim.prompts');
 const { diffSchema } = require('../nim/nim.schemas');
 const { getWeakConcepts } = require('./tracekt.service');
 
-const prisma = new Prismafrontend();
+const prisma = new PrismaClient();
 
 // ─── Create (enqueue generation) ─────────────────────────────────────────────
 async function createRoadmap(userId) {

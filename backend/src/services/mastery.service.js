@@ -30,9 +30,9 @@
  * Both steps run in a single Prisma transaction after every graded Attempt.
  */
 
-const { Prismafrontend } = require('@prisma/frontend');
+const { PrismaClient } = require('@prisma/client');
 
-const prisma = new Prismafrontend();
+const prisma = new PrismaClient();
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const K_LEARNER   = 24;    // Elo K-factor for learner rating

@@ -38,6 +38,9 @@ const mcqSchema = z
       correct_index: z.number().int().min(0).max(3),
       concept_tag: z.string().min(1),
       explanation: z.string().min(1),
+      // TRACE-KT Trust Evaluation Metadata (optional, used by trust scoring engine)
+      concept_tag_rationale: z.string().optional(),
+      difficulty_justification: z.string().optional(),
     })
   )
   .min(1);

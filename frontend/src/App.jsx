@@ -8,6 +8,7 @@ import OnboardingPage from './pages/OnboardingPage';
 import RoadmapPage from './pages/RoadmapPage';
 import ChapterPage from './pages/ChapterPage';
 import AssessmentPage from './pages/AssessmentPage';
+import MasteryDashboard from './pages/MasteryDashboard';
 
 function ProtectedRoute({ children }) {
   const { isLoggedIn } = useAuth();
@@ -36,6 +37,7 @@ function AppRoutes() {
       <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
       <Route path="/onboard"  element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
       <Route path="/roadmap"  element={<ProtectedRoute><Layout><RoadmapPage /></Layout></ProtectedRoute>} />
+      <Route path="/mastery"  element={<ProtectedRoute><Layout><MasteryDashboard /></Layout></ProtectedRoute>} />
       <Route path="/chapters/:id"            element={<ProtectedRoute><Layout><ChapterPage /></Layout></ProtectedRoute>} />
       <Route path="/chapters/:id/assessment" element={<ProtectedRoute><Layout><AssessmentPage /></Layout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/roadmap" replace />} />

@@ -1,11 +1,11 @@
-const { Prismafrontend } = require('@prisma/frontend');
-const { S3frontend, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/frontend-s3');
+const { PrismaClient } = require('@prisma/client');
+const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-const prisma = new Prismafrontend();
+const prisma = new PrismaClient();
 
-// Initialize S3 frontend (works for both AWS S3 and self-hosted MinIO)
-const s3 = new S3frontend({
+// Initialize S3 client (works for both AWS S3 and self-hosted MinIO)
+const s3 = new S3Client({
   region: process.env.S3_REGION || 'us-east-1',
   ...(process.env.S3_ENDPOINT && { endpoint: process.env.S3_ENDPOINT }),
   credentials: {

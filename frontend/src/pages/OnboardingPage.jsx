@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/frontend';
+import api from '../api/client';
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
 
