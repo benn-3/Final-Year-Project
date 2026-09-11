@@ -1,11 +1,11 @@
 const { Worker } = require('bullmq');
-const { PrismaClient } = require('@prisma/client');
+const { Prismafrontend } = require('@prisma/frontend');
 const { connection } = require('../queue');
-const { callNIM } = require('../../nim/nim.client');
+const { callNIM } = require('../../nim/nim.frontend');
 const { buildMCQPrompt } = require('../../nim/nim.prompts');
 const { mcqSchema } = require('../../nim/nim.schemas');
 
-const prisma = new PrismaClient();
+const prisma = new Prismafrontend();
 
 const diagnosticWorker = new Worker(
   'diagnostic-gen',

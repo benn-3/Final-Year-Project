@@ -9,7 +9,7 @@ function errorHandler(err, req, res, next) {
     console.error(err.stack);
   }
   const status = err.status || err.statusCode || 500;
-  res.status(status).json({ error: err.message || 'Internal server error' });
+  res.status(status).json({ error: err.message || 'Internal backend error' });
 }
 
 module.exports = errorHandler;

@@ -1,11 +1,11 @@
 # =========================================
-# Node.js / client / server
+# Node.js / frontend / backend
 # =========================================
 
 # Dependencies
 node_modules/
-server/node_modules/
-client/node_modules/
+backend/node_modules/
+frontend/node_modules/
 
 # Logs
 logs/
@@ -20,12 +20,12 @@ lerna-debug.log*
 .env
 .env.*
 !.env.example
-server/.env
-server/.env.*
-!server/.env.example
-client/.env
-client/.env.*
-!client/.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 
 # Build output
 dist/
@@ -34,9 +34,9 @@ coverage/
 .cache/
 .parcel-cache/
 .vite/
-server/dist/
-client/dist/
-client/build/
+backend/dist/
+frontend/dist/
+frontend/build/
 
 # Prisma
 # Keep migrations tracked; ignore local generated state only if needed:

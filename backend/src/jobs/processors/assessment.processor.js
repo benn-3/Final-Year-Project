@@ -4,7 +4,8 @@ const { connection } = require('../queue');
 const { callNIM } = require('../../nim/nim.client');
 const { buildMCQPrompt } = require('../../nim/nim.prompts');
 const { mcqSchema } = require('../../nim/nim.schemas');
-const { difficultyToElo } = require('../../services/mastery.service');
+const { difficultyToElo } = require('../../services/tracekt.service');
+const { computeTrustScoresForAssessment } = require('../../services/trust.service');
 
 const prisma = new PrismaClient();
 
@@ -67,7 +68,7 @@ const assessmentWorker = new Worker(
 
       // ── Persist questions + seed Elo rating ─────────────────────────────────
       // Seed each question's elo_rating from the generation difficulty.
-      // This is the starting point; the mastery engine will update it after attempts.
+      // This is the starting point; the TRACE-KT engine will update it after attempts.
       const seedElo = difficultyToElo(difficulty);
 
       await prisma.$transaction(async (tx) => {
@@ -82,7 +83,8 @@ const assessmentWorker = new Worker(
             correctIndex: q.correct_index,
             conceptTag:   q.concept_tag,
             explanation:  q.explanation,
-            eloRating:    seedElo, // seeded from difficulty, updated per-attempt by mastery engine
+            eloRating:    seedElo,      // seeded from difficulty
+            trustScore:   0.5,          // initial — will be computed below
           })),
         });
 
@@ -91,6 +93,16 @@ const assessmentWorker = new Worker(
           data:  { status: 'ready', resultRef: assessmentId },
         });
       });
+
+      // ── TRACE-KT: Compute trust scores for all generated questions ─────────
+      // This runs after the transaction so questions exist in DB.
+      try {
+        await computeTrustScoresForAssessment(assessmentId);
+      } catch (trustErr) {
+        // Trust score computation failure is non-fatal — questions still work
+        // with default trust score of 0.5
+        console.error(`[assessment-gen] Trust score computation failed (non-fatal):`, trustErr.message);
+      }
 
       console.log(
         `[assessment-gen] Job ${jobId} complete — ${questions.length} questions for ${assessmentId} (eloRating seeded at ${seedElo})`

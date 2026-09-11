@@ -1,9 +1,9 @@
 const { Router } = require('express');
-const { PrismaClient } = require('@prisma/client');
+const { Prismafrontend } = require('@prisma/frontend');
 const auth = require('../middleware/auth');
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = new Prismafrontend();
 
 // GET /chapters/:id — chapter detail + objectives + status
 router.get('/chapters/:id', auth, async (req, res) => {

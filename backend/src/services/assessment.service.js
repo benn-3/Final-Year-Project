@@ -1,9 +1,28 @@
 const { PrismaClient } = require('@prisma/client');
 const { assessmentQueue } = require('../jobs/queue');
-const { runMasteryEngine, getLearnerRating, ratingToDifficulty } = require('./mastery.service');
+const { runTraceKTEngine, getLearnerRating, ratingToDifficulty } = require('./tracekt.service');
+const { recalibrateTrustScores } = require('./trust.service');
 
 const prisma = new PrismaClient();
 const PASS_THRESHOLD = parseFloat(process.env.PASS_THRESHOLD || '0.70');
+
+// ─── Valid confidence values (5-point Likert → [0, 0.25, 0.5, 0.75, 1.0]) ───
+const VALID_CONFIDENCES = [0, 0.25, 0.5, 0.75, 1.0];
+
+function normalizeConfidence(val) {
+  if (val === null || val === undefined) return 0.5;
+  // Find nearest valid confidence value
+  let closest = VALID_CONFIDENCES[0];
+  let minDist = Math.abs(val - closest);
+  for (const v of VALID_CONFIDENCES) {
+    const dist = Math.abs(val - v);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = v;
+    }
+  }
+  return closest;
+}
 
 // ─── Get or trigger generation ────────────────────────────────────────────────
 async function getOrCreateAssessment(chapterId, userId) {
@@ -106,7 +125,7 @@ async function regenerateAssessment(assessmentId, userId) {
   return { jobId: job.id };
 }
 
-// ─── Get assessment with questions (client-safe — no correct answers) ─────────
+// ─── Get assessment with questions (frontend-safe — no correct answers) ─────────
 async function getAssessmentWithQuestions(assessmentId, userId) {
   const assessment = await prisma.assessment.findFirst({
     where: {
@@ -120,7 +139,7 @@ async function getAssessmentWithQuestions(assessmentId, userId) {
           text: true,
           options: true,
           conceptTag: true,
-          // correctIndex, explanation, eloRating omitted intentionally from client response
+          // correctIndex, explanation, eloRating, trustScore omitted intentionally
         },
       },
     },
@@ -133,16 +152,29 @@ async function getAssessmentWithQuestions(assessmentId, userId) {
   return assessment;
 }
 
-// ─── Submit attempt (server-side grading + mastery engine) ───────────────────
+// ─── Submit attempt (backend-side grading + TRACE-KT engine) ─────────────────
+/**
+ * Submit an assessment attempt with TRACE-KT behavioral data.
+ *
+ * @param {string} assessmentId
+ * @param {string} userId
+ * @param {Array<{
+ *   answerIndex: number,
+ *   responseTimeMs?: number,
+ *   hintCount?: number,
+ *   confidence?: number
+ * }>} answers — extended answer format with behavioral data
+ * @returns {Promise<object>} graded result with mastery + uncertainty
+ */
 async function submitAttempt(assessmentId, userId, answers) {
-  // Fetch with correct answers for grading (server-side only)
+  // Fetch with correct answers for grading (backend-side only)
+  // Include trustScore and eloRating for TRACE-KT engine
   const assessment = await prisma.assessment.findFirst({
     where: {
       id: assessmentId,
       chapter: { milestone: { roadmap: { userId } } },
     },
     include: {
-      // Include eloRating for the mastery engine
       questions: true,
       chapter: { select: { id: true, milestoneId: true } },
     },
@@ -163,27 +195,66 @@ async function submitAttempt(assessmentId, userId, answers) {
     throw err;
   }
 
-  // ── Server-side grading ───────────────────────────────────────────────────
+  // ── Backend-side grading with TRACE-KT behavioral data extraction ─────────
   let correct = 0;
+
+  // Support both legacy format (array of ints) and new format (array of objects)
+  const isLegacyFormat = typeof answers[0] === 'number';
+
   const gradedAnswers = assessment.questions.map((q, i) => {
-    const submitted = answers[i];
-    const isCorrect = submitted === q.correctIndex;
+    const answer = answers[i];
+    let submittedIndex, responseTimeMs, hintCount, confidence;
+
+    if (isLegacyFormat) {
+      // Legacy: answers = [0, 2, 1, 3, ...]
+      submittedIndex = answer;
+      responseTimeMs = 30000; // default 30s
+      hintCount = 0;
+      confidence = 0.5; // moderate default
+    } else {
+      // TRACE-KT format: answers = [{ answerIndex, responseTimeMs, hintCount, confidence }, ...]
+      submittedIndex = answer.answerIndex;
+      responseTimeMs = answer.responseTimeMs || 30000;
+      hintCount = answer.hintCount || 0;
+      confidence = normalizeConfidence(answer.confidence);
+    }
+
+    const isCorrect = submittedIndex === q.correctIndex;
     if (isCorrect) correct++;
+
     return {
       questionId:     q.id,
-      submittedIndex: submitted,
+      submittedIndex,
       correctIndex:   q.correctIndex,
       isCorrect,
       explanation:    q.explanation,
       conceptTag:     q.conceptTag,
+      // TRACE-KT behavioral data
+      responseTimeMs,
+      hintCount,
+      confidence,
     };
   });
 
   const score  = correct / assessment.questions.length;
   const passed = score >= PASS_THRESHOLD;
 
+  // Extract behavioral arrays for Attempt record
+  const responseTimesMs = gradedAnswers.map((g) => g.responseTimeMs);
+  const hintCounts = gradedAnswers.map((g) => g.hintCount);
+  const confidences = gradedAnswers.map((g) => g.confidence);
+
   const attempt = await prisma.attempt.create({
-    data: { userId, assessmentId, score, answers: gradedAnswers, passed },
+    data: {
+      userId,
+      assessmentId,
+      score,
+      answers: gradedAnswers,
+      passed,
+      responseTimesMs,
+      hintCounts,
+      confidences,
+    },
   });
 
   // ── Update chapter status ─────────────────────────────────────────────────
@@ -200,21 +271,45 @@ async function submitAttempt(assessmentId, userId, answers) {
     });
   }
 
-  // ── Run Elo + BKT mastery engine (non-blocking: failure must not fail the attempt response) ─
+  // ── Run TRACE-KT engine (non-blocking: failure must not fail the attempt response) ──
+  let masteryResult = null;
   try {
-    await runMasteryEngine(userId, gradedAnswers, assessment.questions);
+    masteryResult = await runTraceKTEngine(userId, gradedAnswers, assessment.questions);
   } catch (masteryErr) {
-    // Log but do not surface to client — mastery engine failure should never
+    // Log but do not surface to frontend — engine failure should never
     // block the learner from receiving their graded result
-    console.error('[mastery] Engine error (non-fatal):', masteryErr.message);
+    console.error('[TRACE-KT] Engine error (non-fatal):', masteryErr.message);
+  }
+
+  // ── Trigger trust recalibration if sufficient data exists ──
+  try {
+    await recalibrateTrustScores(assessmentId);
+  } catch (trustErr) {
+    console.error('[trust] Recalibration error (non-fatal):', trustErr.message);
   }
 
   return {
-    attemptId:    attempt.id,
-    score:        Math.round(score * 100),
+    attemptId:     attempt.id,
+    score:         Math.round(score * 100),
     passed,
     passThreshold: Math.round(PASS_THRESHOLD * 100),
-    gradedAnswers,
+    gradedAnswers: gradedAnswers.map((g) => ({
+      questionId:     g.questionId,
+      submittedIndex: g.submittedIndex,
+      correctIndex:   g.correctIndex,
+      isCorrect:      g.isCorrect,
+      explanation:    g.explanation,
+      conceptTag:     g.conceptTag,
+    })),
+    // TRACE-KT mastery output
+    mastery: masteryResult ? {
+      newRating: masteryResult.newRating,
+      concepts: masteryResult.updatedConcepts.map((c) => ({
+        tag: c.tag,
+        mastery: Math.round(c.mastery * 1000) / 1000,
+        uncertainty: Math.round(c.uncertainty * 1000) / 1000,
+      })),
+    } : null,
   };
 }
 

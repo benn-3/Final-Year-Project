@@ -8,19 +8,19 @@ The **AI Learning Advisor** is a self-directed learning companion designed to gu
 3. **Adapting the Path:** Proposing structured edits to the roadmap when the user asks for changes, or proactively suggesting reinforcement chapters for concepts the user is struggling with.
 
 ### Tech Stack
-- **server:** Node.js, Express.js
+- **backend:** Node.js, Express.js
 - **Database:** PostgreSQL with Prisma ORM
 - **Job Queue:** Redis + BullMQ (for asynchronous AI generations)
 - **AI Orchestration:** NVIDIA NIM (Nemotron model)
-- **client:** React.js, Vite
+- **frontend:** React.js, Vite
 
 ---
 
 ## 2. System Architecture
 
 The application enforces strict architectural rules to ensure reliability and performance:
-- **Asynchronous AI Generation:** All long-running AI tasks (roadmap generation, diagnostic quizzes, chapter assessments) run as background jobs using BullMQ. The client polls the status endpoints without blocking the main HTTP threads.
-- **Structured AI Outputs:** The AI communicates exclusively in strictly validated JSON schemas. Any malformed output triggers an automatic retry loop server-side.
+- **Asynchronous AI Generation:** All long-running AI tasks (roadmap generation, diagnostic quizzes, chapter assessments) run as background jobs using BullMQ. The frontend polls the status endpoints without blocking the main HTTP threads.
+- **Structured AI Outputs:** The AI communicates exclusively in strictly validated JSON schemas. Any malformed output triggers an automatic retry loop backend-side.
 - **Diff & Confirm Pattern:** Modifications to the learning roadmap are never silently applied. The AI generates a "diff" (add, remove, edit, reorder), which is presented to the user for explicit confirmation before being transactionally committed to the database.
 
 ---
@@ -64,4 +64,4 @@ This solves a major flaw in standard BKT: answering a brutally hard question cor
 ### Step 3: Closing the Loop (Adaptation)
 After the BKT posterior updates, the system checks for **Weak Concepts** (any concept where \`p_mastery < 0.6\`).
 1. **Adaptive Difficulty:** The learner's updated Elo rating is mapped back to a 1-5 scale and fed directly into the NVIDIA NIM prompt for future MCQ generation. A stronger learner will automatically receive harder questions.
-2. **Proactive Roadmap Modification:** When the user asks the AI to modify their roadmap, the server invisibly injects their Weak Concepts into the AI's context window. The AI is instructed to proactively suggest new reinforcement chapters targeting those exact weaknesses.
+2. **Proactive Roadmap Modification:** When the user asks the AI to modify their roadmap, the backend invisibly injects their Weak Concepts into the AI's context window. The AI is instructed to proactively suggest new reinforcement chapters targeting those exact weaknesses.

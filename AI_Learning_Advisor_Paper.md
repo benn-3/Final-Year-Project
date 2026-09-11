@@ -96,7 +96,7 @@ The remainder of this paper is organized as follows: Section 2 presents the prob
 
 Despite significant advances in educational technology, several fundamental problems persist in contemporary online learning platforms:
 
-**P1: Generic Learning Roadmaps.** Most platforms offer predefined courses with fixed sequences of topics. A learner pursuing "Full-Stack Web Development" receives the same roadmap regardless of whether they are a complete beginner, have strong server experience but weak client skills, or are an experienced developer seeking to fill specific knowledge gaps. This fails to optimize the learning path for individual needs.
+**P1: Generic Learning Roadmaps.** Most platforms offer predefined courses with fixed sequences of topics. A learner pursuing "Full-Stack Web Development" receives the same roadmap regardless of whether they are a complete beginner, have strong backend experience but weak frontend skills, or are an experienced developer seeking to fill specific knowledge gaps. This fails to optimize the learning path for individual needs.
 
 **P2: Static Assessment Difficulty.** Traditional quiz systems assign fixed difficulty labels to questions (e.g., Easy, Medium, Hard). These labels are subjective, assigned at content creation time, and never updated based on actual learner performance data. A question labeled "Medium" may be trivially easy for advanced learners and impossibly difficult for beginners, providing little diagnostic value in either case.
 
@@ -277,7 +277,7 @@ As shown in Table 1, the proposed Elo-BKT hybrid system combines the strengths o
 
 ### 5.1 Architecture Overview
 
-The Learning Advisor system follows a layered client-server architecture with clear separation of concerns. The architecture comprises six principal layers: Presentation, API Gateway, Business Logic, AI Orchestration, Adaptive Engine, and Data Persistence.
+The Learning Advisor system follows a layered frontend-backend architecture with clear separation of concerns. The architecture comprises six principal layers: Presentation, API Gateway, Business Logic, AI Orchestration, Adaptive Engine, and Data Persistence.
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
@@ -285,7 +285,7 @@ The Learning Advisor system follows a layered client-server architecture with cl
 └──────────────────────────┬────────────────────────────────────┘
                            │
 ┌──────────────────────────▼────────────────────────────────────┐
-│              client APPLICATION (React + Vite)              │
+│              frontend APPLICATION (React + Vite)              │
 │  ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐  │
 │  │Onboarding│ │ Roadmap  │ │Assessment│ │Progress Dashboard│  │
 │  │  Flow    │ │  View    │ │  View    │ │  & Mastery View  │  │
@@ -293,7 +293,7 @@ The Learning Advisor system follows a layered client-server architecture with cl
 └──────────────────────────┬────────────────────────────────────┘
                            │ REST API (JSON)
 ┌──────────────────────────▼────────────────────────────────────┐
-│                server API (Node.js + Express)                │
+│                backend API (Node.js + Express)                │
 │  ┌──────┐ ┌──────────┐ ┌──────────┐ ┌───────┐ ┌──────────┐  │
 │  │ Auth │ │Onboarding│ │ Roadmap  │ │Assess.│ │  Notes   │  │
 │  │Routes│ │  Routes  │ │  Routes  │ │Routes │ │  Routes  │  │
@@ -321,7 +321,7 @@ The Learning Advisor system follows a layered client-server architecture with cl
 │  │           AI ORCHESTRATION LAYER                       │  │
 │  │  ┌──────────┐  ┌───────────────┐  ┌────────────────┐  │  │
 │  │  │ NIM      │  │ Prompt        │  │ Schema         │  │  │
-│  │  │ Client   │  │ Templates     │  │ Validation     │  │  │
+│  │  │ frontend   │  │ Templates     │  │ Validation     │  │  │
 │  │  │ (OpenAI) │  │ (3 templates) │  │ (Zod)          │  │  │
 │  │  └──────────┘  └───────────────┘  └────────────────┘  │  │
 │  └────────────────────────────────────────────────────────┘  │
@@ -348,9 +348,9 @@ The Learning Advisor system follows a layered client-server architecture with cl
 
 ### 5.2 Component Responsibilities
 
-**client Application (React + Vite):** Handles all user-facing interactions including onboarding, roadmap visualization, assessment taking, note management, and progress tracking. Communicates exclusively via REST API calls to the server.
+**frontend Application (React + Vite):** Handles all user-facing interactions including onboarding, roadmap visualization, assessment taking, note management, and progress tracking. Communicates exclusively via REST API calls to the backend.
 
-**server API (Node.js + Express):** Serves as the central application server, exposing RESTful endpoints for authentication, onboarding, roadmap management, assessment operations, and file management. All routes are protected by JWT authentication middleware.
+**backend API (Node.js + Express):** Serves as the central application backend, exposing RESTful endpoints for authentication, onboarding, roadmap management, assessment operations, and file management. All routes are protected by JWT authentication middleware.
 
 **Service Layer:** Contains the core business logic, isolated from HTTP concerns. Key services include Roadmap Service (generation, modification, diff/confirm workflow), Assessment Service (generation, grading, status management), and Mastery Service (Elo + BKT engine).
 
@@ -358,9 +358,9 @@ The Learning Advisor system follows a layered client-server architecture with cl
 
 **AI Orchestration Layer:** Manages all interactions with the NVIDIA NIM inference API, including prompt template construction, response parsing, JSON schema validation (via Zod), and retry logic for malformed AI outputs.
 
-**Async Job Queue (BullMQ):** Handles long-running AI generation tasks (roadmap generation, assessment generation, diagnostic quiz generation) asynchronously. The client polls status endpoints rather than blocking on AI responses.
+**Async Job Queue (BullMQ):** Handles long-running AI generation tasks (roadmap generation, assessment generation, diagnostic quiz generation) asynchronously. The frontend polls status endpoints rather than blocking on AI responses.
 
-**Data Persistence:** PostgreSQL serves as the primary relational database (via Prisma ORM). Redis provides the job queue server and caching layer. S3-compatible object storage (MinIO) handles file uploads for learner notes.
+**Data Persistence:** PostgreSQL serves as the primary relational database (via Prisma ORM). Redis provides the job queue backend and caching layer. S3-compatible object storage (MinIO) handles file uploads for learner notes.
 
 ---
 
@@ -370,7 +370,7 @@ The Learning Advisor system follows a layered client-server architecture with cl
 
 The learning journey begins when a user provides a learning goal in natural language (e.g., "Become a full-stack web developer," "Master cybersecurity fundamentals," or "Learn machine learning for data science"). The system collects three additional data points during onboarding:
 
-1. **Interest Areas:** The learner selects focus areas from a categorized taxonomy (e.g., server & APIs, Data & AI, Security), providing the AI with domain context.
+1. **Interest Areas:** The learner selects focus areas from a categorized taxonomy (e.g., backend & APIs, Data & AI, Security), providing the AI with domain context.
 2. **Preparedness Level:** A self-reported assessment of prior experience (Just Starting, Some Exposure, Comfortable).
 3. **Diagnostic Score:** An AI-generated calibration quiz establishes a baseline ability estimate.
 
@@ -382,7 +382,7 @@ The calibration (diagnostic) quiz serves as the system's initial assessment of l
 
 1. The system generates 8–15 multiple-choice questions spanning the learner's stated goal area, using the AI orchestration pipeline.
 2. Questions are designed to span multiple difficulty levels (beginner through intermediate) and multiple sub-concepts of the goal area.
-3. The learner's responses are graded server-side, producing a diagnostic score and identifying initial weak concepts.
+3. The learner's responses are graded backend-side, producing a diagnostic score and identifying initial weak concepts.
 4. The diagnostic score calibrates the initial difficulty level of the AI-generated roadmap — a learner scoring 80% receives a more advanced starting point than one scoring 30%.
 
 ### 6.3 Elo Rating Model
@@ -806,20 +806,20 @@ This mapping is passed to the NIM MCQ generation prompt, ensuring that question 
 
 ## 10. System Implementation
 
-### 10.1 client Implementation
+### 10.1 frontend Implementation
 
-The client is built with **React** (using Vite as the build tool) and implements a single-page application architecture. Key views include:
+The frontend is built with **React** (using Vite as the build tool) and implements a single-page application architecture. Key views include:
 
 - **Onboarding Flow:** Multi-step wizard collecting learning goal, interest areas, preparedness level, and administering the diagnostic quiz.
 - **Roadmap View:** Interactive visualization of milestones and chapters with progress indicators and status tracking.
-- **Assessment View:** MCQ presentation with server-side grading and result display including per-question explanations.
+- **Assessment View:** MCQ presentation with backend-side grading and result display including per-question explanations.
 - **Progress Dashboard:** Visualization of concept mastery levels and learning trajectory.
 
-The client communicates with the server exclusively via RESTful API calls, using JWT tokens for authentication. Long-running operations (roadmap generation, assessment generation) are handled through polling patterns.
+The frontend communicates with the backend exclusively via RESTful API calls, using JWT tokens for authentication. Long-running operations (roadmap generation, assessment generation) are handled through polling patterns.
 
-### 10.2 server API Architecture
+### 10.2 backend API Architecture
 
-The server follows a layered architecture:
+The backend follows a layered architecture:
 
 - **Routes Layer:** Express.js route handlers that validate input (Zod schemas), call service methods, and format HTTP responses.
 - **Service Layer:** Business logic implementation, decoupled from HTTP concerns. Services coordinate between the database, job queue, AI orchestration, and mastery engine.
@@ -832,7 +832,7 @@ The server follows a layered architecture:
 ### 10.4 Redis Usage
 
 Redis serves dual purposes:
-1. **Job Queue server:** BullMQ uses Redis as its message broker for asynchronous job processing.
+1. **Job Queue backend:** BullMQ uses Redis as its message broker for asynchronous job processing.
 2. **Connection Management:** Redis manages the lifecycle of background workers and provides reliable job delivery with retry semantics.
 
 ### 10.5 AI Integration

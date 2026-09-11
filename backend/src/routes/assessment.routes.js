@@ -3,11 +3,25 @@ const { z } = require('zod');
 const auth = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const assessmentService = require('../services/assessment.service');
+const { getConceptMasteryWithUncertainty, getWeakConceptsWithContext } = require('../services/tracekt.service');
 
 const router = Router();
 
+// ── TRACE-KT extended answer schema ──────────────────────────────────────────
+// Supports both legacy format (array of ints) and new format (array of objects)
+const traceKTAnswerSchema = z.object({
+  answerIndex: z.number().int().min(0).max(3),
+  responseTimeMs: z.number().int().min(0).optional(),
+  hintCount: z.number().int().min(0).max(3).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+
 const attemptSchema = z.object({
-  answers: z.array(z.number().int().min(0).max(3)).min(1),
+  // Accept either legacy format (array of ints) or TRACE-KT format (array of objects)
+  answers: z.union([
+    z.array(z.number().int().min(0).max(3)).min(1),       // Legacy
+    z.array(traceKTAnswerSchema).min(1),                   // TRACE-KT
+  ]),
 });
 
 // GET /chapters/:id/assessment — get existing or trigger generation
@@ -34,10 +48,24 @@ router.post('/assessments/:id/regenerate', auth, async (req, res) => {
   res.status(202).json(result);
 });
 
-// POST /assessments/:id/attempt — submit answers, grade server-side
+// POST /assessments/:id/attempt — submit answers with TRACE-KT behavioral data
 router.post('/assessments/:id/attempt', auth, validate(attemptSchema), async (req, res) => {
   const result = await assessmentService.submitAttempt(req.params.id, req.user.sub, req.body.answers);
   res.json(result);
+});
+
+// ── TRACE-KT mastery endpoints ───────────────────────────────────────────────
+
+// GET /mastery/concepts — get all concept mastery + uncertainty for current user
+router.get('/mastery/concepts', auth, async (req, res) => {
+  const concepts = await getConceptMasteryWithUncertainty(req.user.sub);
+  res.json({ concepts });
+});
+
+// GET /mastery/weak — get weak concepts with uncertainty context
+router.get('/mastery/weak', auth, async (req, res) => {
+  const weakConcepts = await getWeakConceptsWithContext(req.user.sub);
+  res.json({ weakConcepts });
 });
 
 module.exports = router;

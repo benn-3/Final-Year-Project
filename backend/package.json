@@ -1,20 +1,20 @@
 {
-  "name": "learning-advisor-server",
+  "name": "learning-advisor-backend",
   "version": "1.0.0",
-  "description": "AI Learning Advisor — Express.js server",
-  "main": "src/server.js",
+  "description": "AI Learning Advisor — Express.js backend",
+  "main": "src/backend.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "nodemon src/backend.js",
+    "start": "node src/backend.js",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.600.0",
+    "@aws-sdk/frontend-s3": "^3.600.0",
     "@aws-sdk/s3-request-presigner": "^3.600.0",
-    "@prisma/client": "^5.17.0",
+    "@prisma/frontend": "^5.17.0",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.12.0",
     "cors": "^2.8.5",

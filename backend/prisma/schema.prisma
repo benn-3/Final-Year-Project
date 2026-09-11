@@ -48,12 +48,13 @@ model User {
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  profile        UserProfile?
-  roadmaps       Roadmap[]
-  attempts       Attempt[]
-  chapterNotes   ChapterNote[]
-  learnerRating  LearnerRating?
-  conceptMastery ConceptMastery[]
+  profile          UserProfile?
+  roadmaps         Roadmap[]
+  attempts         Attempt[]
+  chapterNotes     ChapterNote[]
+  learnerRating    LearnerRating?
+  conceptMastery   ConceptMastery[]
+  interactionLogs  InteractionLog[]
 
   @@map("users")
 }
@@ -158,10 +159,23 @@ model Question {
   conceptTag   String @map("concept_tag")
   explanation  String
   /// Elo rating seeded from difficulty at generation time (easy≈1000, medium≈1200, hard≈1400).
-  /// Updated after every attempt via the mastery engine.
+  /// Updated after every attempt via the TRACE-KT engine.
   eloRating    Float  @default(1200) @map("elo_rating")
 
-  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  /// ──── TRACE-KT: Question Trust Score ────
+  /// Composite trust score ∈ [0, 1] computed at generation time from concept consistency,
+  /// relevance, difficulty calibration, and format quality.
+  /// Low-trust questions have reduced influence on mastery estimation.
+  trustScore   Float  @default(0.5) @map("trust_score")
+
+  /// Number of total responses received — used for difficulty calibration component of trust.
+  responseCount Int   @default(0) @map("response_count")
+  /// Empirical correctness rate — updated after each response for trust recalibration.
+  empiricalCorrectRate Float? @map("empirical_correct_rate")
+
+  assessment      Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  interactionLogs InteractionLog[]
+  trustLogs       QuestionTrustLog[]
 
   @@map("questions")
 }
@@ -174,6 +188,14 @@ model Attempt {
   answers      Json
   passed       Boolean
   attemptedAt  DateTime @default(now()) @map("attempted_at")
+
+  /// ──── TRACE-KT: Behavioral Data ────
+  /// Per-question response times in milliseconds, stored as JSON array matching question order.
+  responseTimesMs Json?  @map("response_times_ms")
+  /// Per-question hint counts (how many distractors were eliminated), JSON array.
+  hintCounts      Json?  @map("hint_counts")
+  /// Per-question confidence levels (5-point Likert mapped to [0, 0.25, 0.5, 0.75, 1.0]), JSON array.
+  confidences     Json?  @map("confidences")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -215,10 +237,10 @@ model GenerationJob {
   @@map("generation_jobs")
 }
 
-// ─── Adaptive mastery engine ──────────────────────────────────────────────────
+// ─── TRACE-KT: Adaptive Mastery Engine ────────────────────────────────────────
 
 /// Live Elo rating per learner. Upserted on first attempt (default 1200).
-/// Updated by the mastery engine after every graded attempt.
+/// Updated by the TRACE-KT engine after every graded attempt.
 model LearnerRating {
   userId    String   @id @map("user_id")
   rating    Float    @default(1200)
@@ -229,13 +251,25 @@ model LearnerRating {
   @@map("learner_ratings")
 }
 
-/// BKT posterior per (learner, concept). One row per concept tag per user.
-/// p_mastery starts at 0.3 (prior) and is updated after every relevant attempt.
+/// TRACE-KT posterior per (learner, concept). One row per concept tag per user.
+/// Tracks both mastery probability and epistemic uncertainty via Beta distribution.
 model ConceptMastery {
   id         String   @id @default(cuid())
   userId     String   @map("user_id")
   conceptTag String   @map("concept_tag")
+
+  /// BKT mastery posterior ∈ [0, 1]. Starts at 0.3 (conservative prior).
   pMastery   Float    @default(0.3) @map("p_mastery")
+
+  /// ──── TRACE-KT: Uncertainty Tracking ────
+  /// Epistemic uncertainty ∈ [0, 1] derived from Beta(α, β) distribution.
+  /// High = few/inconsistent interactions; Low = many consistent interactions.
+  uncertainty Float   @default(0.5)
+  /// Beta distribution shape parameter α (evidence for mastery).
+  betaAlpha   Float   @default(1.0) @map("beta_alpha")
+  /// Beta distribution shape parameter β (evidence against mastery).
+  betaBeta    Float   @default(1.0) @map("beta_beta")
+
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -243,4 +277,63 @@ model ConceptMastery {
   @@unique([userId, conceptTag])
   @@index([userId])
   @@map("concept_mastery")
+}
+
+// ─── TRACE-KT: Interaction & Trust Logging ────────────────────────────────────
+
+/// Per-question behavioral interaction log for TRACE-KT.
+/// Records the full cognitive evidence for each learner-question interaction.
+model InteractionLog {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  questionId     String   @map("question_id")
+  conceptTag     String   @map("concept_tag")
+
+  correct        Boolean
+  responseTimeMs Int      @map("response_time_ms")
+  hintCount      Int      @default(0) @map("hint_count")
+  /// Confidence level from 5-point Likert: 0.0, 0.25, 0.5, 0.75, 1.0
+  confidence     Float    @default(0.5)
+  /// Which attempt number this is for this concept (for attempt decay factor)
+  attemptNumber  Int      @default(1) @map("attempt_number")
+
+  /// Computed CES (Cognitive Evidence Strength) for this interaction
+  cesScore       Float?   @map("ces_score")
+  /// Effective evidence weight = CES × trust
+  effectiveWeight Float?  @map("effective_weight")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, conceptTag])
+  @@index([questionId])
+  @@map("interaction_logs")
+}
+
+/// Audit trail for question trust score computation.
+/// One row per trust computation (at generation time + recalibrations).
+model QuestionTrustLog {
+  id                   String   @id @default(cuid())
+  questionId           String   @map("question_id")
+
+  /// Component scores
+  conceptConsistency   Float    @map("concept_consistency")
+  relevanceScore       Float    @map("relevance_score")
+  difficultyCalibration Float   @map("difficulty_calibration")
+  formatScore          Float    @map("format_score")
+
+  /// Weighted composite
+  overallTrust         Float    @map("overall_trust")
+
+  /// Whether this is the initial computation or a recalibration
+  isRecalibration      Boolean  @default(false) @map("is_recalibration")
+
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("question_trust_logs")
 }

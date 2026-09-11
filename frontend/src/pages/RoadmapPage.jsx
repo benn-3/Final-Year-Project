@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import api from '../api/client';
+import api from '../api/frontend';
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
 import DiffConfirmCard from '../components/DiffConfirmCard';

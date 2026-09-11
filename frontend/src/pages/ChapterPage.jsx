@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../api/client';
+import api from '../api/frontend';
 import { useToast } from '../components/Toast';
 
 export default function ChapterPage() {

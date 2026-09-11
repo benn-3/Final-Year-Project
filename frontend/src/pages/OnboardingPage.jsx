@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/client';
+import api from '../api/frontend';
 import { usePolling } from '../hooks/usePolling';
 import { useToast } from '../components/Toast';
 
@@ -10,12 +10,12 @@ const FOCUS_AREA_GROUPS = [
     areas: ["JavaScript", "Python", "Java", "Go", "Rust", "C++", "C#", "Kotlin", "Swift", "Ruby"]
   },
   {
-    category: "server & APIs",
-    areas: ["APIs", "server", "Microservices", "GraphQL", "Node.js", "REST Design", "gRPC", "Message Queues", "WebSockets"]
+    category: "backend & APIs",
+    areas: ["APIs", "backend", "Microservices", "GraphQL", "Node.js", "REST Design", "gRPC", "Message Queues", "WebSockets"]
   },
   {
-    category: "client & Mobile",
-    areas: ["client", "React", "Vue", "TypeScript", "Mobile Development", "iOS Development", "Android Development", "UI/UX Design", "Web Performance", "Accessibility"]
+    category: "frontend & Mobile",
+    areas: ["frontend", "React", "Vue", "TypeScript", "Mobile Development", "iOS Development", "Android Development", "UI/UX Design", "Web Performance", "Accessibility"]
   },
   {
     category: "Databases & Data Engineering",
@@ -216,7 +216,7 @@ export default function OnboardingPage() {
             <textarea
               id="onboard-goal-input"
               className="input"
-              placeholder='e.g. "Become job-ready in server development with Node.js and PostgreSQL"'
+              placeholder='e.g. "Become job-ready in backend development with Node.js and PostgreSQL"'
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               rows={4}

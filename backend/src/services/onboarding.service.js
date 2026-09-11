@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+const { Prismafrontend } = require('@prisma/frontend');
 const { diagnosticQueue } = require('../jobs/queue');
 
-const prisma = new PrismaClient();
+const prisma = new Prismafrontend();
 
 async function createProfile(userId, { goal, interests, preparedness, selfRatedKnowledge }) {
   // Upsert so re-running onboarding works cleanly
@@ -72,7 +72,7 @@ async function getDiagnosticQuestions(jobId) {
   }
   // Questions are stored in job.metadata by the diagnostic processor
   const questions = job.metadata?.questions || [];
-  // Strip correct answers from client-facing response
+  // Strip correct answers from frontend-facing response
   return questions.map(({ correct_index, explanation, ...q }) => q);
 }
 
@@ -96,7 +96,7 @@ async function submitDiagnostic(userId, { jobId, answers }) {
     throw err;
   }
 
-  // Server-side grading
+  // backend-side grading
   let correct = 0;
   const weakConcepts = [];
   questions.forEach((q, i) => {
